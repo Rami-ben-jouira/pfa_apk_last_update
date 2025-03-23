@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "521372803755",
+    "project_id": "adhdhelperbase",
+    "storage_bucket": "adhdhelperbase.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:521372803755:android:71df255e24cba192b50dee",
+        "android_client_info": {
+          "package_name": "com.example.adhd_helper"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "521372803755-dsj48kovu7n7qt1fulagos9bt20vgl4n.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.adhd_helper",
+            "certificate_hash": "f9729defcf2aac3e6ad1cf86d05a4aed10b129f8"
+          }
+        },
+        {
+          "client_id": "521372803755-5bt6bnf2pvgoo3d4cdklokeei62k6h9e.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyALTrH3shJTsww3INmeO0IAXK3pdqSntSg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "521372803755-5bt6bnf2pvgoo3d4cdklokeei62k6h9e.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
