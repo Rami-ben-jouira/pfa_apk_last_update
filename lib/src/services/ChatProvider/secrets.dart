@@ -1,0 +1,4 @@
+const String GEMINI_MODEL_API = 'AIzaSyBIRO3q3RRjBhgXhFP1yvhqDuvJw3wtND0';
+
+const String UPGRADED_GEMINI_MODEL_API =
+    'AIzaSyDTMSRmFWNmB9K7dQ7XTpwrRClC4DCL4ek';
