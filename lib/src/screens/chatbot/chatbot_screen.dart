@@ -32,9 +32,112 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
 
   String selectedLocale = "fr_FR";
   String selectedVoiceLanguage = "fr-FR";
+  OverlayEntry? _languageOverlayEntry;
 
   // Ajoutez cette variable pour gérer la synthèse vocale
   final FlutterTts flutterTts = FlutterTts();
+  void _showLanguageOverlay(BuildContext context) {
+  if (_languageOverlayEntry != null) {
+    _languageOverlayEntry!.remove();
+    _languageOverlayEntry = null;
+    return;
+  }
+
+  // Create the overlay entry
+  _languageOverlayEntry = OverlayEntry(
+    builder: (context) => Stack(
+      children: [
+        // Transparent background to detect taps
+        GestureDetector(
+          onTap: () {
+            _removeLanguageOverlay();
+          },
+          behavior: HitTestBehavior.opaque, // Ensures taps are detected
+          child: Container(color: Colors.transparent),
+        ),
+
+        // Language selection window
+        Positioned(
+          top: 100, // Adjust position
+          right: 10,
+          child: Material(
+            color: Colors.transparent, // Transparent background
+            child: Container(
+              width: 200,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    spreadRadius: 2,
+                    blurRadius: 6,
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  ListTile(
+                    onTap: () {
+                      _changeLanguage('fr_FR');
+                    },
+                    title: Row(
+                      children: [
+                        if (selectedLocale == 'fr_FR') Icon(Icons.check, size: 16),
+                        SizedBox(width: 8),
+                        Text('Français'),
+                      ],
+                    ),
+                  ),
+                  ListTile(
+                    onTap: () {
+                      _changeLanguage('ar_SA');
+                    },
+                    title: Row(
+                      children: [
+                        if (selectedLocale == 'ar_SA') Icon(Icons.check, size: 16),
+                        SizedBox(width: 8),
+                        Text('العربية'),
+                      ],
+                    ),
+                  ),
+                  ListTile(
+                    onTap: () {
+                      _changeLanguage('en_US');
+                    },
+                    title: Row(
+                      children: [
+                        if (selectedLocale == 'en_US') Icon(Icons.check, size: 16),
+                        SizedBox(width: 8),
+                        Text('English'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  // Insert the overlay into the overlay stack
+  Overlay.of(context)?.insert(_languageOverlayEntry!);
+}
+
+// Function to remove the overlay
+void _removeLanguageOverlay() {
+  _languageOverlayEntry?.remove();
+  _languageOverlayEntry = null;
+}
+  void _changeLanguage(String locale) {
+    setState(() {
+      selectedLocale = locale;
+    });
+    _languageOverlayEntry?.remove();
+    _languageOverlayEntry = null;
+  }
 
   @override
   void initState() {
@@ -201,7 +304,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   }
 
   // méthode qui gére le changement de langue
-  void _changeLanguage(String locale) {
+  void _changeLanguage2(String locale) {
     setState(() {
       selectedLocale = locale;
       // Mettre à jour la langue de la synthèse vocale en fonction de la sélection
@@ -288,6 +391,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     );
   }
 */
+
   @override
   @override
   Widget build(BuildContext context) {
@@ -310,46 +414,11 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
         ),
 
         actions: [
-          PopupMenuButton<String>(
+          IconButton(
             icon: Icon(Icons.language),
-            color: Colors.white,
-            onSelected: _changeLanguage,
-            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-              PopupMenuItem<String>(
-                value: "fr_FR",
-                child: Row(
-                  children: [
-                    if (selectedLocale == "fr_FR") Icon(Icons.check, size: 16),
-                    SizedBox(width: 8),
-                    Text(
-                      "Français",
-                      style: TextStyle(
-                        fontWeight: selectedLocale == "fr_FR"
-                            ? FontWeight.bold
-                            : FontWeight.normal,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              PopupMenuItem<String>(
-                value: "ar_SA",
-                child: Row(
-                  children: [
-                    if (selectedLocale == "ar_SA") Icon(Icons.check, size: 16),
-                    SizedBox(width: 8),
-                    Text(
-                      "العربية",
-                      style: TextStyle(
-                        fontWeight: selectedLocale == "ar_SA"
-                            ? FontWeight.bold
-                            : FontWeight.normal,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+            onPressed: () {
+              _showLanguageOverlay(context); // Show the overlay when clicked
+            },
           ),
           IconButton(
             icon: const Icon(Icons.more_horiz),
@@ -379,7 +448,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                     children: [
                       IconButton(
                         icon: Image.asset(
-                          'images/02_planing.gif',
+                          'assets/images/02_planing.gif',
                           width: 40,
                           height: 40,
                         ),
@@ -388,7 +457,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                       ),
                       IconButton(
                         icon: Image.asset(
-                          'images/03_feeling2.gif',
+                          'assets/images/03_feeling2.gif',
                           width: 40,
                           height: 40,
                         ),
@@ -397,7 +466,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                       ),
                       IconButton(
                         icon: Image.asset(
-                          'images/04_thinking2.gif',
+                          'assets/images/04_thinking2.gif',
                           width: 40,
                           height: 40,
                         ),

@@ -13,6 +13,7 @@ class _ChatBubbleState extends State<ChatBubble> {
   double x = 300;
   double y = 600;
   double bubbleSize = 110; // Size of the floating chat bubble
+  OverlayEntry? _chatbotOverlay;
 
   @override
   Widget build(BuildContext context) {
@@ -42,15 +43,10 @@ class _ChatBubbleState extends State<ChatBubble> {
           });
         },
         onTap: () {
-          showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: Colors.transparent,
-            builder: (context) => ChatbotWindow(),
-          );
+          _showChatbotWindow(context);
         },
         child: Image.asset(
-          'images/01_logo.gif',
+          'assets/images/01_logo.gif',
           width: bubbleSize,
           height: bubbleSize,
           fit: BoxFit.cover,
@@ -58,89 +54,161 @@ class _ChatBubbleState extends State<ChatBubble> {
       ),
     );
   }
-}
 
-class ChatbotWindow extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => Navigator.of(context).pop(), // Close when clicking outside
-      child: Container(
-        color: const Color.fromARGB(
-            0, 0, 0, 0), // Semi-transparent background for overlay effect
-        child: Align(
-          alignment: Alignment.bottomCenter, // Position at the bottom
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              double screenWidth = constraints.maxWidth;
-              double screenHeight = constraints.maxHeight;
+  void _showChatbotWindow(BuildContext context) {
+    if (_chatbotOverlay != null) {
+      _chatbotOverlay!.remove();
+      _chatbotOverlay = null;
+      return;
+    }
 
-              return GestureDetector(
-                onTap: () {}, // Prevents taps inside the window from closing it
-                child: Container(
-                  width: screenWidth * 0.9,
-                  height: screenHeight * 0.85, // Keep 75% of screen height
-                  margin:
-                      EdgeInsets.only(bottom: 30), // Small padding from bottom
-                  decoration: BoxDecoration(
-                    color: Color.fromARGB(255, 255, 255, 255),
-                    borderRadius: BorderRadius.circular(20),
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.white, // Color at the top
-                        Colors.transparent, // Transparent in the middle
-                        Colors.transparent, // Transparent at the bottom
-                      ],
-                      stops: [
-                        0.0,
-                        0.5,
-                        1.0
-                      ], // Control the positions of the transparency
+    double startY = MediaQuery.of(context).size.height * 0.15; // Start position
+    double maxY =
+        MediaQuery.of(context).size.height * 0.95; // Maximum swipe limit
+    double currentY = startY;
+    double opacity = 0.7;
+    bool isDragging = false;
+    bool isClosing = false;
+    Duration animationDuration = Duration(milliseconds: 300);
+
+    OverlayEntry overlayEntry = OverlayEntry(
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return GestureDetector(
+              behavior: HitTestBehavior
+                  .opaque, // Ensure whole screen detects gestures
+              onTap: () {
+                if (!isClosing) {
+                  isClosing = true;
+                  setState(() {
+                    currentY = maxY;
+                    opacity = 0.0;
+                  });
+                  Future.delayed(animationDuration, () {
+                    _chatbotOverlay?.remove();
+                    _chatbotOverlay = null;
+                  });
+                }
+              },
+              child: Stack(
+                children: [
+                  AnimatedContainer(
+                    duration: animationDuration,
+                    color: Colors.black.withOpacity(opacity),
+                  ),
+                  AnimatedPositioned(
+                    duration: isDragging ? Duration.zero : animationDuration,
+                    curve: Curves.easeOutCubic,
+                    left: 0,
+                    right: 0,
+                    top: currentY,
+                    child: GestureDetector(
+                      onTap: () {}, // Prevent click inside from closing
+                      onVerticalDragStart: (_) => isDragging = true,
+                      onVerticalDragUpdate: (details) {
+                        setState(() {
+                          // Allow only downward movement
+                          currentY = (currentY + details.delta.dy * 0.8)
+                              .clamp(startY, maxY);
+                          opacity = (0.7 -
+                                  ((currentY - startY) / (maxY - startY) * 0.7))
+                              .clamp(0.1, 0.7);
+                        });
+                      },
+                      onVerticalDragEnd: (details) {
+                        isDragging = false;
+                        if (details.primaryVelocity! > 500 ||
+                            currentY > maxY - 150) {
+                          // If swiped fast or far enough, dismiss smoothly
+                          isClosing = true;
+                          setState(() {
+                            currentY = maxY;
+                            opacity = 0.0;
+                          });
+                          Future.delayed(animationDuration, () {
+                            _chatbotOverlay?.remove();
+                            _chatbotOverlay = null;
+                          });
+                        } else {
+                          // Snap back if not swiped far enough
+                          setState(() {
+                            currentY = startY;
+                            opacity = 0.7;
+                          });
+                        }
+                      },
+                      child: Container(
+                        width: MediaQuery.of(context).size.width,
+                        height: MediaQuery.of(context).size.height,
+                        margin: EdgeInsets.fromLTRB(
+                            20, 0, 20, 0), // Small padding from bottom
+                        decoration: BoxDecoration(
+                          color: Color.fromARGB(255, 255, 255, 255),
+                          borderRadius: BorderRadius.circular(20),
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.white, // Color at the top
+                              Colors.transparent, // Transparent in the middle
+                              Colors.transparent, // Transparent at the bottom
+                            ],
+                            stops: [
+                              0.0,
+                              0.5,
+                              1.0
+                            ], // Control the positions of the transparency
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            // Swipe Down Indicator
+                            Padding(
+                              padding:
+                                  const EdgeInsets.only(top: 10, bottom: 10),
+                              child: Center(
+                                child: Container(
+                                  width: 50,
+                                  height: 4,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[400],
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                ),
+                                
+                                
+                              ),
+                            ),
+                            // Chatbot Content (with scroll support)
+                            Expanded(
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.vertical(
+                                    bottom: Radius.circular(20)),
+                                child: SingleChildScrollView(
+                                  child: SizedBox(
+                                    height: MediaQuery.of(context).size.height *
+                                        0.8,
+                                    child: ChatbotScreen(),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                  child: Column(
-                    children: [
-                      // Header
-                      Padding(
-                        padding: const EdgeInsets.only(top: 10, bottom: 10),
-                        child: Center(
-                          child: Container(
-                            width: 50, // The width of the line
-                            height: 4, // The height of the line
-                            decoration: BoxDecoration(
-                              color: Colors.grey[400], // Color of the line
-                              borderRadius:
-                                  BorderRadius.circular(2), // Rounded edges
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      // Chatbot Content (with scroll support)
-                      Expanded(
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.vertical(
-                              bottom: Radius.circular(20)),
-                          child: SingleChildScrollView(
-                            child: SizedBox(
-                              height: screenHeight *
-                                  0.82, // Adjusted to make it align with the edge (considering the margin)
-                              child: ChatbotScreen(),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
+
+    _chatbotOverlay = overlayEntry;
+    Overlay.of(context)?.insert(_chatbotOverlay!);
   }
 }
 
@@ -149,21 +217,21 @@ Widget _buildAuraBackground() {
     child: AuraBox(
       spots: [
         AuraSpot(
-          color: Colors.deepPurple.shade900, // Dark purple for a cozy feel
+          color: Colors.deepPurple.shade900,
           radius: 250.0,
           alignment: Alignment.topLeft,
           blurRadius: 80.0,
           stops: const [0.0, 0.7],
         ),
         AuraSpot(
-          color: Colors.indigo.shade800, // Deep blue for a mysterious touch
+          color: Colors.indigo.shade800,
           radius: 300.0,
           alignment: Alignment.center,
           blurRadius: 100.0,
           stops: const [0.0, 0.8],
         ),
         AuraSpot(
-          color: Colors.pinkAccent.shade700, // Darker pink for some contrast
+          color: Colors.pinkAccent.shade700,
           radius: 250.0,
           alignment: Alignment.bottomRight,
           blurRadius: 70.0,
@@ -171,9 +239,9 @@ Widget _buildAuraBackground() {
         ),
       ],
       decoration: BoxDecoration(
-        color: Colors.black, // Dark base to enhance the glowing effect
+        color: Colors.black,
       ),
-      child: Container(), // Empty child to satisfy the requirement
+      child: Container(),
     ),
   );
 }
