@@ -127,7 +127,7 @@ class _MyAppState extends State<MyApp> {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _manageOverlay(context);
           });
-          return const HomeScreen();
+          return const Homepage();
         },
       ),
     );
@@ -163,7 +163,7 @@ class _HomepageState extends State<Homepage> {
               }
               return asyncSnapshot.data == true
                   ? const KidsHomeScreen()
-                  : const HomeScreen();
+                  : const Homepage();
             },
           );
         }
