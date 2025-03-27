@@ -37,100 +37,104 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   // Ajoutez cette variable pour gérer la synthèse vocale
   final FlutterTts flutterTts = FlutterTts();
   void _showLanguageOverlay(BuildContext context) {
-  if (_languageOverlayEntry != null) {
-    _languageOverlayEntry!.remove();
-    _languageOverlayEntry = null;
-    return;
-  }
+    if (_languageOverlayEntry != null) {
+      _languageOverlayEntry!.remove();
+      _languageOverlayEntry = null;
+      return;
+    }
 
-  // Create the overlay entry
-  _languageOverlayEntry = OverlayEntry(
-    builder: (context) => Stack(
-      children: [
-        // Transparent background to detect taps
-        GestureDetector(
-          onTap: () {
-            _removeLanguageOverlay();
-          },
-          behavior: HitTestBehavior.opaque, // Ensures taps are detected
-          child: Container(color: Colors.transparent),
-        ),
+    // Create the overlay entry
+    _languageOverlayEntry = OverlayEntry(
+      builder: (context) => Stack(
+        children: [
+          // Transparent background to detect taps
+          GestureDetector(
+            onTap: () {
+              _removeLanguageOverlay();
+            },
+            behavior: HitTestBehavior.opaque, // Ensures taps are detected
+            child: Container(color: Colors.transparent),
+          ),
 
-        // Language selection window
-        Positioned(
-          top: 100, // Adjust position
-          right: 10,
-          child: Material(
-            color: Colors.transparent, // Transparent background
-            child: Container(
-              width: 200,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    spreadRadius: 2,
-                    blurRadius: 6,
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  ListTile(
-                    onTap: () {
-                      _changeLanguage('fr_FR');
-                    },
-                    title: Row(
-                      children: [
-                        if (selectedLocale == 'fr_FR') Icon(Icons.check, size: 16),
-                        SizedBox(width: 8),
-                        Text('Français'),
-                      ],
+          // Language selection window
+          Positioned(
+            top: 100, // Adjust position
+            right: 10,
+            child: Material(
+              color: Colors.transparent, // Transparent background
+              child: Container(
+                width: 200,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      spreadRadius: 2,
+                      blurRadius: 6,
                     ),
-                  ),
-                  ListTile(
-                    onTap: () {
-                      _changeLanguage('ar_SA');
-                    },
-                    title: Row(
-                      children: [
-                        if (selectedLocale == 'ar_SA') Icon(Icons.check, size: 16),
-                        SizedBox(width: 8),
-                        Text('العربية'),
-                      ],
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    ListTile(
+                      onTap: () {
+                        _changeLanguage('fr_FR');
+                      },
+                      title: Row(
+                        children: [
+                          if (selectedLocale == 'fr_FR')
+                            Icon(Icons.check, size: 16),
+                          SizedBox(width: 8),
+                          Text('Français'),
+                        ],
+                      ),
                     ),
-                  ),
-                  ListTile(
-                    onTap: () {
-                      _changeLanguage('en_US');
-                    },
-                    title: Row(
-                      children: [
-                        if (selectedLocale == 'en_US') Icon(Icons.check, size: 16),
-                        SizedBox(width: 8),
-                        Text('English'),
-                      ],
+                    ListTile(
+                      onTap: () {
+                        _changeLanguage('ar_SA');
+                      },
+                      title: Row(
+                        children: [
+                          if (selectedLocale == 'ar_SA')
+                            Icon(Icons.check, size: 16),
+                          SizedBox(width: 8),
+                          Text('العربية'),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                    ListTile(
+                      onTap: () {
+                        _changeLanguage('en_US');
+                      },
+                      title: Row(
+                        children: [
+                          if (selectedLocale == 'en_US')
+                            Icon(Icons.check, size: 16),
+                          SizedBox(width: 8),
+                          Text('English'),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
 
-  // Insert the overlay into the overlay stack
-  Overlay.of(context)?.insert(_languageOverlayEntry!);
-}
+    // Insert the overlay into the overlay stack
+    Overlay.of(context)?.insert(_languageOverlayEntry!);
+  }
 
 // Function to remove the overlay
-void _removeLanguageOverlay() {
-  _languageOverlayEntry?.remove();
-  _languageOverlayEntry = null;
-}
+  void _removeLanguageOverlay() {
+    _languageOverlayEntry?.remove();
+    _languageOverlayEntry = null;
+  }
+
   void _changeLanguage(String locale) {
     setState(() {
       selectedLocale = locale;
@@ -153,11 +157,11 @@ void _removeLanguageOverlay() {
   }
 
   void _initAIModel() {
-    // const apiKey = GEMINI_MODEL_API; //modele le9dim
-    const apiKey = UPGRADED_GEMINI_MODEL_API;
+    const apiKey = GEMINI_MODEL_API; //modele le9dim
+    // const apiKey = UPGRADED_GEMINI_MODEL_API;
     _model = GenerativeModel(
-      // model: 'tunedModels/data-adhd-conversation-hrt0r83znwtv', //modele le9dim
-      model: 'tunedModels/adhd-chatbot-30-czqhi70ufn0b',
+      model: 'tunedModels/data-adhd-conversation-hrt0r83znwtv', //modele le9dim
+      // model: 'tunedModels/adhd-chatbot-30-czqhi70ufn0b',
       apiKey: apiKey,
       generationConfig: GenerationConfig(
         temperature: 1,
@@ -312,6 +316,8 @@ void _removeLanguageOverlay() {
         selectedVoiceLanguage = "fr-FR";
       } else if (locale == "ar_SA") {
         selectedVoiceLanguage = "ar-SA";
+      } else if (locale == "en-US") {
+        selectedVoiceLanguage = "en-US";
       }
       _initializeTts(); // Réinitialiser la synthèse vocale avec la nouvelle langue
     });

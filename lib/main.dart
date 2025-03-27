@@ -161,9 +161,10 @@ class _HomepageState extends State<Homepage> {
                 return const Scaffold(
                     body: Center(child: CircularProgressIndicator()));
               }
-              return asyncSnapshot.data == true
-                  ? const KidsHomeScreen()
-                  : const Homepage();
+              // return asyncSnapshot.data == true
+              //     ? const KidsHomeScreen()
+              //     : const Homepage();
+              return const HomeScreen();
             },
           );
         }
