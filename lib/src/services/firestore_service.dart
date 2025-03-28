@@ -2,6 +2,7 @@ import 'package:adhd_helper/src/models/Breathing.dart';
 import 'package:adhd_helper/src/models/activites.dart';
 import 'package:adhd_helper/src/models/child.dart';
 import 'package:adhd_helper/src/models/conner_quiz.dart';
+import 'package:adhd_helper/src/models/conversation.dart';
 import 'package:adhd_helper/src/models/emotion_wave.dart';
 import 'package:adhd_helper/src/models/emotions.dart';
 import 'package:adhd_helper/src/models/message.dart';
@@ -420,7 +421,7 @@ class FirestoreService {
 
       // Create a new client
       Map<String, dynamic> newClient = {
-        "childID":childId,
+        "childID": childId,
         "parentID": useruid,
         "isconfirmed": true,
         "parent_name": patientName,
@@ -585,15 +586,11 @@ class FirestoreService {
   }
 
   void addNotebook(NoteBook noteBook) async {
-    await _firestore
-        .collection('Activites_Cognitives')
-        .add(noteBook.toMap());
+    await _firestore.collection('Activites_Cognitives').add(noteBook.toMap());
   }
 
   void addRoutine(Routines routine) async {
-    await _firestore
-        .collection('Activites_Cognitives')
-        .add(routine.toMap());
+    await _firestore.collection('Activites_Cognitives').add(routine.toMap());
   }
 
   void addActivite(Activites activites) async {
@@ -619,4 +616,108 @@ class FirestoreService {
         .collection('activites_emotionnelles')
         .add(breathing.toMap());
   }
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  // Create a new Conversation in Firestore
+  Future<void> createConversation(Conversation conversation) async {
+    try {
+      await _firestore
+          .collection('conversations')
+          .doc(conversation.idConversation)
+          .set(conversation.toMap());
+    } catch (e) {
+      print('Error creating conversation: $e');
+      throw e;
+    }
+  }
+
+  // Delete a Conversation
+  static Future<void> deleteConversation(String conversationId) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('conversations')
+          .doc(conversationId)
+          .delete();
+    } catch (e) {
+      print('Error deleting conversation: $e');
+      throw e;
+    }
+  }
+
+  // Get a Conversation by ID
+  static Future<Conversation?> getConversationById(
+      String conversationId) async {
+    try {
+      final docSnapshot = await FirebaseFirestore.instance
+          .collection('conversations')
+          .doc(conversationId)
+          .get();
+
+      if (docSnapshot.exists) {
+        return Conversation.fromMap(docSnapshot.data() as Map<String, dynamic>);
+      }
+      return null;
+    } catch (e) {
+      print('Error getting conversation: $e');
+      return null;
+    }
+  }
+
+  // Get all Conversations for a specific child
+  Future<List<Conversation>> getUserConversations(String userId) async {
+    try {
+      final snapshot = await _firestore
+          .collection('conversations')
+          .where('parentId', isEqualTo: userId)
+          .get();
+
+      return snapshot.docs
+          .map((doc) => Conversation.fromMap(doc.data()))
+          .toList();
+    } catch (e) {
+      print('Error getting user conversations: $e');
+      return [];
+    }
+  }
+
+  // Add a message to the conversation
+  Future<void> addMessageToConversation(
+      String conversationId, String message) async {
+    try {
+      await _firestore.collection('conversations').doc(conversationId).update({
+        'chatMessages': FieldValue.arrayUnion([message])
+      });
+    } catch (e) {
+      print('Error adding message to conversation: $e');
+      throw e;
+    }
+  }
+
+  // Update an existing Conversation
+  Future<void> updateConversation(
+      String conversationId, Conversation conversation) async {
+    try {
+      await _firestore
+          .collection('conversations')
+          .doc(conversationId)
+          .update(conversation.toMap());
+    } catch (e) {
+      print('Error updating conversation: $e');
+      throw e;
+    }
+  }
+
+  // Future<List<String>> fetchUserIdsFromFirestore() async {
+  //   try {
+  //     QuerySnapshot querySnapshot = await _firestore.collection('users').get();
+  //     List<String> userIds = querySnapshot.docs
+  //         .map((doc) => doc.data()['uid'] as String)
+  //         .toList();
+  //     return userIds;
+  //   } catch (e) {
+  //     print('Error fetching user IDs: $e');
+  //     return [];
+  //   }
+  // }
 }

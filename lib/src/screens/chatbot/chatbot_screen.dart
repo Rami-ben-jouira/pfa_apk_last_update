@@ -1,3 +1,4 @@
+import 'package:adhd_helper/src/models/conversation.dart';
 import 'package:adhd_helper/src/services/ChatProvider/secrets.dart';
 import 'package:aura_box/aura_box.dart';
 import 'package:dash_chat_2/dash_chat_2.dart';
@@ -5,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:flutter_tts/flutter_tts.dart'; // Importez flutter_tts
+import 'package:adhd_helper/src/services/firestore_service.dart';
 
 class ChatbotScreen extends StatefulWidget {
   const ChatbotScreen({Key? key}) : super(key: key);
@@ -17,6 +19,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   final stt.SpeechToText _speechToText = stt.SpeechToText();
   bool _isListening = false;
   String _lastWords = '';
+  late Conversation _currentConversation;
 
   List<ChatMessage> messages = [];
 
@@ -149,6 +152,12 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     _initSpeech();
     _initAIModel();
     _initializeTts(); // Initialiser la synthèse vocale
+    _currentConversation = Conversation(
+        idConversation: DateTime.now().millisecondsSinceEpoch.toString(),
+        createdAt: DateTime.now().toIso8601String(),
+        chatMessages: [],
+        childId: aiUser.id,
+        parentId: currentUser.id);
   }
 
   void _initSpeech() async {
@@ -259,9 +268,20 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       messages.insert(0, userMessage);
       if (!_firstMessageSent) {
         _firstMessageSent = true;
-        _showEmojis = false; // Hide emojis after the first message
+        _showEmojis = false; // Masquer les emojis après le premier message
       }
     });
+
+    // Initialiser la conversation si c'est le premier message
+    if (_currentConversation == null) {
+      _currentConversation = Conversation(
+        idConversation: DateTime.now().millisecondsSinceEpoch.toString(),
+        createdAt: DateTime.now().toIso8601String(),
+        chatMessages: [],
+        childId: aiUser.id,
+        parentId: currentUser.id,
+      );
+    }
 
     final content = Content.text(userMessage.text);
 
@@ -274,6 +294,16 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       );
       setState(() {
         messages.insert(0, aiMessage);
+        // Ajouter les messages à la conversation
+        _currentConversation.chatMessages.add(userMessage.text);
+        _currentConversation.chatMessages.add(responseText ?? '');
+      });
+
+      // Enregistrer la conversation dans Firestore
+      FirestoreService().createConversation(_currentConversation).then((_) {
+        print('Conversation enregistrée avec succès');
+      }).catchError((error) {
+        print('Erreur lors de l’enregistrement de la conversation : $error');
       });
 
       // Lire la réponse du chatbot à haute voix
