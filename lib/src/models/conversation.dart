@@ -2,15 +2,12 @@ class Conversation {
   final String idConversation;
   final String createdAt;
   final List<String> chatMessages;
-  final String childId;
-
   final String parentId;
 
   Conversation({
     required this.idConversation,
     required this.createdAt,
     required this.chatMessages,
-    required this.childId,
     required this.parentId,
   });
 
@@ -20,7 +17,6 @@ class Conversation {
       'idConversation': idConversation,
       'createdAt': createdAt,
       'chatMessages': chatMessages,
-      'childId': childId,
       'parentId': parentId,
     };
   }
@@ -31,7 +27,6 @@ class Conversation {
       idConversation: map['idConversation'],
       createdAt: map['createdAt'],
       chatMessages: List<String>.from(map['chatMessages']),
-      childId: map['childId'],
       parentId: map['parentId'],
     );
   }

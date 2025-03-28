@@ -632,6 +632,11 @@ class FirestoreService {
     }
   }
 
+  String? getCurrentUserId() {
+    // Retourne l'UID de l'utilisateur connecté, ou null si non connecté
+    return FirebaseAuth.instance.currentUser?.uid;
+  }
+
   // Delete a Conversation
   static Future<void> deleteConversation(String conversationId) async {
     try {

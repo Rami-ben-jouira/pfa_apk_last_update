@@ -20,6 +20,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   bool _isListening = false;
   String _lastWords = '';
   late Conversation _currentConversation;
+  String? userId;
 
   List<ChatMessage> messages = [];
 
@@ -149,6 +150,12 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   @override
   void initState() {
     super.initState();
+    String? userId = FirestoreService().getCurrentUserId();
+    if (userId == null) {
+      // Rediriger vers l'écran de connexion ou gérer ce cas
+      print('Utilisateur non connecté');
+      return;
+    }
     _initSpeech();
     _initAIModel();
     _initializeTts(); // Initialiser la synthèse vocale
@@ -156,8 +163,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
         idConversation: DateTime.now().millisecondsSinceEpoch.toString(),
         createdAt: DateTime.now().toIso8601String(),
         chatMessages: [],
-        childId: aiUser.id,
-        parentId: currentUser.id);
+        parentId: userId);
   }
 
   void _initSpeech() async {
@@ -278,8 +284,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
         idConversation: DateTime.now().millisecondsSinceEpoch.toString(),
         createdAt: DateTime.now().toIso8601String(),
         chatMessages: [],
-        childId: aiUser.id,
-        parentId: currentUser.id,
+        parentId: userId ?? 'unknown_user',
       );
     }
 
