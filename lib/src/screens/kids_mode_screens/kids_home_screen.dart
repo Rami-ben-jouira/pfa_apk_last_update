@@ -1,4 +1,5 @@
 import 'package:adhd_helper/constants/appbar.dart';
+import 'package:adhd_helper/src/screens/chatbot/chat_bubble.dart';
 import 'package:adhd_helper/src/screens/home_screen.dart';
 import 'package:adhd_helper/src/screens/kids_mode_screens/Emotional_Techniques/emotions_activites_screens.dart';
 import 'package:adhd_helper/src/screens/kids_mode_screens/Behavioral_techniques/behavioral_activites_screen.dart';
@@ -22,9 +23,45 @@ class KidsHomeScreen extends StatefulWidget {
 
 class _KidsHomeScreenState extends State<KidsHomeScreen> {
   final LocalAuthentication _localAuthentication = LocalAuthentication();
+  OverlayEntry? _chatBubbleOverlay;
+  bool _isOverlayVisible = false;
+
   @override
   void initState() {
     super.initState();
+    // Affiche la bubble dès que l'écran est chargé
+    WidgetsBinding.instance.addPostFrameCallback((_) => _showOverlay());
+  }
+
+  @override
+  void dispose() {
+    _removeOverlay(); // Nettoie l'overlay quand l'écran est quitté
+    super.dispose();
+  }
+
+  void _showOverlay() {
+    if (_isOverlayVisible) return;
+
+    final overlay = Overlay.of(context);
+    if (overlay == null) return;
+
+    _chatBubbleOverlay = OverlayEntry(
+      builder: (context) => Positioned(
+        bottom: 20,
+        right: 20,
+        child: ChatBubble(), // Assurez-vous que ChatBubble est importé
+      ),
+    );
+
+    overlay.insert(_chatBubbleOverlay!);
+    _isOverlayVisible = true;
+  }
+
+  void _removeOverlay() {
+    if (!_isOverlayVisible) return;
+    _chatBubbleOverlay?.remove();
+    _chatBubbleOverlay = null;
+    _isOverlayVisible = false;
   }
 
   @override
@@ -61,11 +98,13 @@ class _KidsHomeScreenState extends State<KidsHomeScreen> {
                       onPressed: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder: (context) => const CognitiveActiviteScreen(),
+                            builder: (context) =>
+                                const CognitiveActiviteScreen(),
                           ),
                         );
                       },
-                      buttonText: AppLocalizations.of(context)!.cognitiveActivities),
+                      buttonText:
+                          AppLocalizations.of(context)!.cognitiveActivities),
                   SubmitButton(
                       onPressed: () {
                         Navigator.of(context).push(
@@ -74,7 +113,8 @@ class _KidsHomeScreenState extends State<KidsHomeScreen> {
                           ),
                         );
                       },
-                      buttonText: AppLocalizations.of(context)!.behavioralActivities),
+                      buttonText:
+                          AppLocalizations.of(context)!.behavioralActivities),
                   SubmitButton(
                       onPressed: () {
                         Navigator.of(context).push(
@@ -83,7 +123,8 @@ class _KidsHomeScreenState extends State<KidsHomeScreen> {
                           ),
                         );
                       },
-                      buttonText: AppLocalizations.of(context)!.emotionalActivities),
+                      buttonText:
+                          AppLocalizations.of(context)!.emotionalActivities),
                   SubmitButton(
                       onPressed: () {
                         _authenticate();

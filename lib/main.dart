@@ -1,8 +1,6 @@
-import 'package:adhd_helper/src/screens/chatbot/chat_bubble.dart';
 import 'package:adhd_helper/src/screens/home_screen.dart';
 import 'package:adhd_helper/src/screens/kids_mode_screens/kids_home_screen.dart';
 import 'package:adhd_helper/src/screens/login_screen.dart';
-import 'package:adhd_helper/src/services/ChatProvider/chatProvider.dart';
 import 'package:adhd_helper/src/services/auth_service.dart';
 import 'package:adhd_helper/utils/kids_mode_activation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -10,7 +8,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'l10n/l10n.dart';
 
@@ -18,29 +15,29 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
 
-  runApp(
-    ChangeNotifierProvider(
-      create: (context) => ChatBubbleProvider(),
-      child: const MyApp(),
-    ),
-  );
+  runApp(const MyApp());
 }
 
 class MyApp extends StatefulWidget {
   const MyApp({Key? key}) : super(key: key);
 
   static void setLocale(BuildContext context, Locale newLocale) async {
-    final state = context.findAncestorStateOfType<_MyAppState>();
-    final prefs = await SharedPreferences.getInstance();
+    _MyAppState? state = context.findAncestorStateOfType<_MyAppState>();
 
-    await prefs.setString('languageCode', newLocale.languageCode);
-    state?.setState(() => state._locale =
-        newLocale); //explain what is meaning of the locale : it is the language of the app
+    var prefs = await SharedPreferences.getInstance();
+    prefs.setString('languageCode', newLocale.languageCode);
+
+    // ignore: invalid_use_of_protected_member
+    state?.setState(() {
+      state._locale = newLocale;
+    });
   }
 
   static Future<Locale> getLocale() async {
-    final prefs = await SharedPreferences.getInstance();
-    final languageCode = prefs.getString('languageCode') ?? 'en';
+    var prefs = await SharedPreferences.getInstance();
+
+    String languageCode = prefs.getString('languageCode') ?? 'en';
+
     return Locale(languageCode);
   }
 
@@ -50,62 +47,25 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   final FirebaseAuthService authService = FirebaseAuthService();
-  OverlayEntry? _chatBubbleOverlay;
-  bool _isOverlayVisible = false;
-  Locale _locale = const Locale('en');
 
+  late bool kidsmode;
+  Locale _locale = const Locale('en');
   @override
   void initState() {
     super.initState();
-    _initializeLocale();
+    _fetchLocale().then((locale) {
+      setState(() {
+        _locale = locale;
+      });
+    });
   }
 
-  Future<void> _initializeLocale() async {
-    _locale = await MyApp.getLocale();
-    if (mounted) setState(() {});
-  }
+  Future<Locale> _fetchLocale() async {
+    var prefs = await SharedPreferences.getInstance();
 
-  void _manageOverlay(BuildContext context) {
-    final chatBubbleProvider =
-        Provider.of<ChatBubbleProvider>(context, listen: false);
+    String languageCode = prefs.getString('languageCode') ?? 'en';
 
-    if (chatBubbleProvider.showBubble && !_isOverlayVisible) {
-      _showOverlay(context);
-    } else if (!chatBubbleProvider.showBubble && _isOverlayVisible) {
-      _removeOverlay();
-    }
-  }
-
-  void _showOverlay(BuildContext context) {
-    if (_isOverlayVisible) return;
-
-    final overlayState = Overlay.of(context);
-    if (overlayState == null) return;
-
-    _chatBubbleOverlay = OverlayEntry(
-      builder: (context) => Positioned(
-        bottom: 20,
-        right: 20,
-        child: ChatBubble(),
-      ),
-    );
-
-    overlayState.insert(_chatBubbleOverlay!);
-    _isOverlayVisible = true;
-  }
-
-  void _removeOverlay() {
-    if (!_isOverlayVisible) return;
-
-    _chatBubbleOverlay?.remove();
-    _chatBubbleOverlay = null;
-    _isOverlayVisible = false;
-  }
-
-  @override
-  void dispose() {
-    _removeOverlay();
-    super.dispose();
+    return Locale(languageCode);
   }
 
   @override
@@ -116,32 +76,43 @@ class _MyAppState extends State<MyApp> {
       supportedLocales: L10n.all,
       locale: _locale,
       localizationsDelegates: const [
-        AppLocalizations.delegate,
+        AppLocalizations.delegate, // Add this line
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      home: Builder(
-        builder: (context) {
-          // Manage overlay when widget builds
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _manageOverlay(context);
-          });
-          return const Homepage();
-        },
-      ),
+      home: const homepage(),
     );
+  }
+
+  Widget testfunction() {
+    return FutureBuilder(
+        future: loadSavedValue(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const CircularProgressIndicator(); // Show a loading indicator while waiting.
+          } else if (snapshot.hasError) {
+            return Text('Error: ${snapshot.error}');
+          } else {
+            bool result = snapshot.data ?? false;
+            if (result) {
+              return const KidsHomeScreen();
+            } else {
+              return const HomeScreen();
+            }
+          }
+        });
   }
 }
 
-class Homepage extends StatefulWidget {
-  const Homepage({super.key});
+class homepage extends StatefulWidget {
+  const homepage({super.key});
 
   @override
-  State<Homepage> createState() => _HomepageState();
+  State<homepage> createState() => _homepageState();
 }
 
-class _HomepageState extends State<Homepage> {
+class _homepageState extends State<homepage> {
   final FirebaseAuthService authService = FirebaseAuthService();
 
   @override
@@ -149,26 +120,11 @@ class _HomepageState extends State<Homepage> {
     return StreamBuilder<User?>(
       stream: authService.authState(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-              body: Center(child: CircularProgressIndicator()));
-        }
         if (snapshot.hasData) {
-          return FutureBuilder<bool>(
-            future: loadSavedValue(),
-            builder: (context, asyncSnapshot) {
-              if (asyncSnapshot.connectionState == ConnectionState.waiting) {
-                return const Scaffold(
-                    body: Center(child: CircularProgressIndicator()));
-              }
-              // return asyncSnapshot.data == true
-              //     ? const KidsHomeScreen()
-              //     : const Homepage();
-              return const HomeScreen();
-            },
-          );
+          return const HomeScreen();
+        } else {
+          return const LoginScreen();
         }
-        return const LoginScreen();
       },
     );
   }
