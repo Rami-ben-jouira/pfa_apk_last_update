@@ -19,7 +19,6 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   final stt.SpeechToText _speechToText = stt.SpeechToText();
   bool _isListening = false;
   String _lastWords = '';
-  late Conversation _currentConversation;
   String? userId;
 
   List<ChatMessage> messages = [];
@@ -37,6 +36,8 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   String selectedLocale = "fr_FR";
   String selectedVoiceLanguage = "fr-FR";
   OverlayEntry? _languageOverlayEntry;
+
+  Conversation? _currentConversation;
 
   // Ajoutez cette variable pour gérer la synthèse vocale
   final FlutterTts flutterTts = FlutterTts();
@@ -150,21 +151,108 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   @override
   void initState() {
     super.initState();
+    print("initState called: Resetting conversation");
+
     String? userId = FirestoreService().getCurrentUserId();
     if (userId == null) {
-      // Rediriger vers l'écran de connexion ou gérer ce cas
       print('Utilisateur non connecté');
       return;
     }
+
     _initSpeech();
     _initAIModel();
     _initializeTts(); // Initialiser la synthèse vocale
-    _currentConversation = Conversation(
-        idConversation: DateTime.now().millisecondsSinceEpoch.toString(),
-        createdAt: DateTime.now().toIso8601String(),
-        chatMessages: [],
-        parentId: userId);
+
+    print("User ID found: $userId");
+
+    _loadLastConversation(userId); // Load last conversation
   }
+
+  //-----------------------------------------------------------********-----------------------------------------
+
+  void _loadLastConversation(String userId) async {
+    print("Loading last conversation for user: $userId");
+
+    List<Conversation> conversations =
+        await FirestoreService().getUserConversations(userId);
+
+    if (conversations.isNotEmpty) {
+      _currentConversation = conversations.last; // Load last conversation
+      print("Last conversation ID: ${_currentConversation!.idConversation}");
+
+      setState(() {
+        // Reverse the chatMessages to display the most recent at the bottom
+        messages = _currentConversation!
+            .chatMessages // Do not reverse here, we will alternate users based on index
+            .asMap() // Convert the list to a map with index
+            .map((index, msg) {
+              // Alternate the sender based on the index
+              final user = index % 2 == 0
+                  ? ChatUser(
+                      id: userId) // Create ChatUser with required parameters
+                  : aiUser; // Assuming aiUser is a ChatUser instance
+              return MapEntry(
+                  index,
+                  ChatMessage(
+                    user: user, // Assign user based on index
+                    createdAt: DateTime.now(),
+                    text: msg,
+                  ));
+            })
+            .values // Get the values of the MapEntry
+            .toList()
+            .reversed // Reverse the order to display the most recent at the bottom
+            .toList();
+      });
+
+      print('Last conversation loaded with ${messages.length} messages.');
+
+      // Provide the entire conversation history to the AI model
+      String fullConversation = _currentConversation!.chatMessages.join('\n');
+
+      // You can now send this conversation history to the AI model
+      // Example:
+      final response = await _chat.sendMessage(Content.text(fullConversation));
+
+      // Handle the AI response
+      final aiResponse = ChatMessage(
+        user: aiUser,
+        createdAt: DateTime.now(),
+        text: response.text ?? '',
+      );
+
+      setState(() {
+        messages.insert(0, aiResponse); // Insert the AI response at the top
+      });
+
+      print("AI Response with conversation context: ${response.text}");
+    } else {
+      print('No previous conversations found, creating a new one.');
+      _resetConversation(userId);
+    }
+  }
+
+  //-----------------------------------------------------------********-----------------------------------------
+
+  void _resetConversation(String userId) {
+    print("Resetting conversation for user: $userId");
+
+    _currentConversation = Conversation(
+      idConversation: DateTime.now().millisecondsSinceEpoch.toString(),
+      createdAt: DateTime.now().toString(),
+      chatMessages: [],
+      parentId: userId,
+    );
+
+    setState(() {
+      messages = []; // Clear the messages list
+    });
+
+    print(
+        'New conversation created with ID: ${_currentConversation!.idConversation}');
+  }
+
+  //-----------------------------------------------------------********-----------------------------------------
 
   void _initSpeech() async {
     await _speechToText.initialize();
@@ -270,55 +358,66 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   }
 
   void _sendMessage(ChatMessage userMessage) {
-    setState(() {
-      messages.insert(0, userMessage);
-      if (!_firstMessageSent) {
-        _firstMessageSent = true;
-        _showEmojis = false; // Masquer les emojis après le premier message
-      }
-    });
-
-    // Initialiser la conversation si c'est le premier message
-    if (_currentConversation == null) {
-      _currentConversation = Conversation(
-        idConversation: DateTime.now().millisecondsSinceEpoch.toString(),
-        createdAt: DateTime.now().toIso8601String(),
-        chatMessages: [],
-        parentId: userId ?? 'unknown_user',
-      );
-    }
-
-    final content = Content.text(userMessage.text);
-
-    _chat.sendMessage(content).then((response) {
-      final responseText = response.text;
-      final aiMessage = ChatMessage(
-        user: aiUser,
-        createdAt: DateTime.now(),
-        text: responseText ?? '',
-      );
-      setState(() {
-        messages.insert(0, aiMessage);
-        // Ajouter les messages à la conversation
-        _currentConversation.chatMessages.add(userMessage.text);
-        _currentConversation.chatMessages.add(responseText ?? '');
-      });
-
-      // Enregistrer la conversation dans Firestore
-      FirestoreService().createConversation(_currentConversation).then((_) {
-        print('Conversation enregistrée avec succès');
-      }).catchError((error) {
-        print('Erreur lors de l’enregistrement de la conversation : $error');
-      });
-
-      // Lire la réponse du chatbot à haute voix
-      if (_voiceEnabled && responseText != null && responseText.isNotEmpty) {
-        _speak(responseText);
-      }
-    }).catchError((error) {
-      print('Erreur lors de l’envoi au modèle AI : $error');
-    });
+  if (_currentConversation == null) {
+    print("ERROR: _currentConversation is null before sending message!");
+    return;
   }
+
+  // Add the user message to the conversation and update the state
+  setState(() {
+    messages.insert(0, userMessage);
+  });
+
+  print("User message added: ${userMessage.text}");
+
+  // Add the new message to Firestore conversation history
+  _currentConversation?.chatMessages.add(userMessage.text);
+
+  // **Ensure we only send up to the last 30 messages (or all if fewer exist)**
+  int messageCount = _currentConversation!.chatMessages.length;
+  List<String> lastMessages = _currentConversation!.chatMessages
+      .sublist(messageCount > 30 ? messageCount - 30 : 0); // Get last 30 or all if fewer
+
+  // Debugging: Print the last 30 messages before sending them to AI
+  print("\n===== LAST ${lastMessages.length} MESSAGES TO AI =====");
+  for (int i = 0; i < lastMessages.length; i++) {
+    print("[${i + 1}] ${lastMessages[i]}");
+  }
+  print("====================================\n");
+
+  // Create a formatted conversation history for AI
+  String limitedConversation = lastMessages.join("\n");
+
+  final content = Content.text(limitedConversation); // Send limited messages
+
+  _chat.sendMessage(content).then((response) {
+    final responseText = response.text;
+    final aiMessage = ChatMessage(
+      user: aiUser,
+      createdAt: DateTime.now(),
+      text: responseText ?? '',
+    );
+
+    setState(() {
+      messages.insert(0, aiMessage);
+      _currentConversation?.chatMessages.add(responseText ?? '');
+    });
+
+    print("AI Response received: $responseText");
+
+    FirestoreService().createConversation(_currentConversation!).then((_) {
+      print('Conversation successfully saved');
+    }).catchError((error) {
+      print('Error saving conversation: $error');
+    });
+
+    if (_voiceEnabled && responseText != null && responseText.isNotEmpty) {
+      _speak(responseText);
+    }
+  }).catchError((error) {
+    print('Error sending to AI model: $error');
+  });
+}
 
   void _sendPrompt(String prompt) {
     final content = Content.text(prompt);
