@@ -180,24 +180,36 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       _currentConversation = conversations.last;
       print("Last conversation ID: ${_currentConversation!.idConversation}");
 
+      // Parse the createdAt string to DateTime
+      DateTime conversationDate =
+          DateTime.parse(_currentConversation!.createdAt);
+
       // Create a new list for messages
       List<ChatMessage> loadedMessages = [];
 
-      // We need to alternate between user and AI messages
-      // Assuming the first message is from the user, second from AI, etc.
+      // Add date separator as first message
+      loadedMessages.add(ChatMessage(
+        user: ChatUser(id: 'system', firstName: 'System'),
+        createdAt: conversationDate,
+        text: _formatConversationDate(conversationDate),
+        // isSystem: true,
+      ));
+
+      // Add the rest of the messages
       for (int i = 0; i < _currentConversation!.chatMessages.length; i++) {
         final message = _currentConversation!.chatMessages[i];
-        final isUserMessage = i % 2 == 0; // Alternates between user and AI
+        final isUserMessage = i % 2 == 0;
 
         loadedMessages.add(ChatMessage(
           user: isUserMessage ? currentUser : aiUser,
-          createdAt: DateTime.now(),
+          createdAt: conversationDate
+              .add(Duration(minutes: i + 1)), // Add some time difference
           text: message,
         ));
       }
 
       setState(() {
-        messages = loadedMessages.reversed.toList(); // Most recent at bottom
+        messages = loadedMessages.reversed.toList();
       });
 
       print('Last conversation loaded with ${messages.length} messages.');
@@ -230,20 +242,44 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     }
   }
 
+  String _formatConversationDate(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(Duration(days: 1));
+    final conversationDay = DateTime(date.year, date.month, date.day);
+
+    if (conversationDay == today) {
+      return "Aujourd'hui";
+    } else if (conversationDay == yesterday) {
+      return "Hier";
+    } else {
+      return "${date.day}/${date.month}/${date.year}";
+    }
+  }
+
   //-----------------------------------------------------------********-----------------------------------------
 
   void _resetConversation(String userId) {
     print("Resetting conversation for user: $userId");
 
+    final now = DateTime.now();
+
     _currentConversation = Conversation(
-      idConversation: DateTime.now().millisecondsSinceEpoch.toString(),
-      createdAt: DateTime.now().toString(),
+      idConversation: now.millisecondsSinceEpoch.toString(),
+      createdAt: now.toIso8601String(), // Format ISO 8601
       chatMessages: [],
       parentId: userId,
     );
 
     setState(() {
-      messages = []; // Clear the messages list
+      messages = [
+        ChatMessage(
+          user: ChatUser(id: 'system', firstName: 'System'),
+          createdAt: now,
+          text: _formatConversationDate(now),
+          // isSystem: true, // Removed as it is not defined
+        )
+      ];
     });
 
     print(
@@ -420,7 +456,34 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   }
 
   void _sendPrompt(String prompt) {
-    final content = Content.text(prompt);
+    if (_currentConversation == null) {
+      print("ERROR: _currentConversation is null before sending prompt!");
+      return;
+    }
+
+    // Créer le message utilisateur
+    final userMessage = ChatMessage(
+      user: currentUser,
+      createdAt: DateTime.now(),
+      text: prompt,
+    );
+
+    // Ajouter le message à l'interface et à la conversation
+    setState(() {
+      messages.insert(0, userMessage);
+      _currentConversation?.chatMessages.add(prompt);
+      _showEmojis = false; // Cacher les emojis après le premier message
+      _firstMessageSent = true;
+    });
+
+    print("Prompt message added: $prompt");
+
+    // Envoyer à l'IA (avec gestion de l'historique comme dans _sendMessage)
+    int messageCount = _currentConversation!.chatMessages.length;
+    List<String> lastMessages = _currentConversation!.chatMessages
+        .sublist(messageCount > 30 ? messageCount - 30 : 0);
+
+    final content = Content.text(lastMessages.join("\n"));
 
     _chat.sendMessage(content).then((response) {
       final responseText = response.text;
@@ -429,15 +492,26 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
         createdAt: DateTime.now(),
         text: responseText ?? '',
       );
+
       setState(() {
         messages.insert(0, aiMessage);
-        if (!_firstMessageSent) {
-          _firstMessageSent = true;
-          _showEmojis = false; // Hide emojis after first message
-        }
+        _currentConversation?.chatMessages.add(responseText ?? '');
       });
+
+      print("AI Response to prompt: $responseText");
+
+      // Sauvegarder la conversation
+      FirestoreService().createConversation(_currentConversation!).then((_) {
+        print('Conversation successfully saved after prompt');
+      }).catchError((error) {
+        print('Error saving conversation after prompt: $error');
+      });
+
+      if (_voiceEnabled && responseText != null && responseText.isNotEmpty) {
+        _speak(responseText);
+      }
     }).catchError((error) {
-      print('Erreur lors de l’envoi au modèle AI : $error');
+      print('Error sending prompt to AI model: $error');
     });
   }
 
