@@ -177,55 +177,53 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
         await FirestoreService().getUserConversations(userId);
 
     if (conversations.isNotEmpty) {
-      _currentConversation = conversations.last; // Load last conversation
+      _currentConversation = conversations.last;
       print("Last conversation ID: ${_currentConversation!.idConversation}");
 
+      // Create a new list for messages
+      List<ChatMessage> loadedMessages = [];
+
+      // We need to alternate between user and AI messages
+      // Assuming the first message is from the user, second from AI, etc.
+      for (int i = 0; i < _currentConversation!.chatMessages.length; i++) {
+        final message = _currentConversation!.chatMessages[i];
+        final isUserMessage = i % 2 == 0; // Alternates between user and AI
+
+        loadedMessages.add(ChatMessage(
+          user: isUserMessage ? currentUser : aiUser,
+          createdAt: DateTime.now(),
+          text: message,
+        ));
+      }
+
       setState(() {
-        // Reverse the chatMessages to display the most recent at the bottom
-        messages = _currentConversation!
-            .chatMessages // Do not reverse here, we will alternate users based on index
-            .asMap() // Convert the list to a map with index
-            .map((index, msg) {
-              // Alternate the sender based on the index
-              final user = index % 2 == 0
-                  ? ChatUser(
-                      id: userId) // Create ChatUser with required parameters
-                  : aiUser; // Assuming aiUser is a ChatUser instance
-              return MapEntry(
-                  index,
-                  ChatMessage(
-                    user: user, // Assign user based on index
-                    createdAt: DateTime.now(),
-                    text: msg,
-                  ));
-            })
-            .values // Get the values of the MapEntry
-            .toList()
-            .reversed // Reverse the order to display the most recent at the bottom
-            .toList();
+        messages = loadedMessages.reversed.toList(); // Most recent at bottom
       });
 
       print('Last conversation loaded with ${messages.length} messages.');
 
-      // Provide the entire conversation history to the AI model
-      String fullConversation = _currentConversation!.chatMessages.join('\n');
+      // If you want to continue the conversation with AI
+      if (messages.isNotEmpty) {
+        final lastMessage = messages.first;
+        if (lastMessage.user == currentUser) {
+          // Send the last user message to AI to get a response
+          final response =
+              await _chat.sendMessage(Content.text(lastMessage.text));
 
-      // You can now send this conversation history to the AI model
-      // Example:
-      final response = await _chat.sendMessage(Content.text(fullConversation));
+          final aiResponse = ChatMessage(
+            user: aiUser,
+            createdAt: DateTime.now(),
+            text: response.text ?? '',
+          );
 
-      // Handle the AI response
-      final aiResponse = ChatMessage(
-        user: aiUser,
-        createdAt: DateTime.now(),
-        text: response.text ?? '',
-      );
+          setState(() {
+            messages.insert(0, aiResponse);
+            _currentConversation?.chatMessages.add(aiResponse.text);
+          });
 
-      setState(() {
-        messages.insert(0, aiResponse); // Insert the AI response at the top
-      });
-
-      print("AI Response with conversation context: ${response.text}");
+          print("AI Response with conversation context: ${response.text}");
+        }
+      }
     } else {
       print('No previous conversations found, creating a new one.');
       _resetConversation(userId);
@@ -358,66 +356,68 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   }
 
   void _sendMessage(ChatMessage userMessage) {
-  if (_currentConversation == null) {
-    print("ERROR: _currentConversation is null before sending message!");
-    return;
-  }
-
-  // Add the user message to the conversation and update the state
-  setState(() {
-    messages.insert(0, userMessage);
-  });
-
-  print("User message added: ${userMessage.text}");
-
-  // Add the new message to Firestore conversation history
-  _currentConversation?.chatMessages.add(userMessage.text);
-
-  // **Ensure we only send up to the last 30 messages (or all if fewer exist)**
-  int messageCount = _currentConversation!.chatMessages.length;
-  List<String> lastMessages = _currentConversation!.chatMessages
-      .sublist(messageCount > 30 ? messageCount - 30 : 0); // Get last 30 or all if fewer
-
-  // Debugging: Print the last 30 messages before sending them to AI
-  print("\n===== LAST ${lastMessages.length} MESSAGES TO AI =====");
-  for (int i = 0; i < lastMessages.length; i++) {
-    print("[${i + 1}] ${lastMessages[i]}");
-  }
-  print("====================================\n");
-
-  // Create a formatted conversation history for AI
-  String limitedConversation = lastMessages.join("\n");
-
-  final content = Content.text(limitedConversation); // Send limited messages
-
-  _chat.sendMessage(content).then((response) {
-    final responseText = response.text;
-    final aiMessage = ChatMessage(
-      user: aiUser,
-      createdAt: DateTime.now(),
-      text: responseText ?? '',
-    );
-
-    setState(() {
-      messages.insert(0, aiMessage);
-      _currentConversation?.chatMessages.add(responseText ?? '');
-    });
-
-    print("AI Response received: $responseText");
-
-    FirestoreService().createConversation(_currentConversation!).then((_) {
-      print('Conversation successfully saved');
-    }).catchError((error) {
-      print('Error saving conversation: $error');
-    });
-
-    if (_voiceEnabled && responseText != null && responseText.isNotEmpty) {
-      _speak(responseText);
+    if (_currentConversation == null) {
+      print("ERROR: _currentConversation is null before sending message!");
+      return;
     }
-  }).catchError((error) {
-    print('Error sending to AI model: $error');
-  });
-}
+
+    // Add the user message to the conversation and update the state
+    setState(() {
+      messages.insert(0, userMessage);
+    });
+
+    print("User message added: ${userMessage.text}");
+
+    // Add the new message to Firestore conversation history
+    _currentConversation?.chatMessages.add(userMessage.text);
+
+    // **Ensure we only send up to the last 30 messages (or all if fewer exist)**
+    int messageCount = _currentConversation!.chatMessages.length;
+    List<String> lastMessages = _currentConversation!.chatMessages.sublist(
+        messageCount > 30
+            ? messageCount - 30
+            : 0); // Get last 30 or all if fewer
+
+    // Debugging: Print the last 30 messages before sending them to AI
+    print("\n===== LAST ${lastMessages.length} MESSAGES TO AI =====");
+    for (int i = 0; i < lastMessages.length; i++) {
+      print("[${i + 1}] ${lastMessages[i]}");
+    }
+    print("====================================\n");
+
+    // Create a formatted conversation history for AI
+    String limitedConversation = lastMessages.join("\n");
+
+    final content = Content.text(limitedConversation); // Send limited messages
+
+    _chat.sendMessage(content).then((response) {
+      final responseText = response.text;
+      final aiMessage = ChatMessage(
+        user: aiUser,
+        createdAt: DateTime.now(),
+        text: responseText ?? '',
+      );
+
+      setState(() {
+        messages.insert(0, aiMessage);
+        _currentConversation?.chatMessages.add(responseText ?? '');
+      });
+
+      print("AI Response received: $responseText");
+
+      FirestoreService().createConversation(_currentConversation!).then((_) {
+        print('Conversation successfully saved');
+      }).catchError((error) {
+        print('Error saving conversation: $error');
+      });
+
+      if (_voiceEnabled && responseText != null && responseText.isNotEmpty) {
+        _speak(responseText);
+      }
+    }).catchError((error) {
+      print('Error sending to AI model: $error');
+    });
+  }
 
   void _sendPrompt(String prompt) {
     final content = Content.text(prompt);
