@@ -140,12 +140,37 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     _languageOverlayEntry = null;
   }
 
+  // Supprimez _changeLanguage2 et gardez seulement cette version modifiée
   void _changeLanguage(String locale) {
     setState(() {
       selectedLocale = locale;
+
+      // Mettre à jour la langue de la synthèse vocale en fonction de la sélection
+      if (locale == "fr_FR") {
+        selectedVoiceLanguage = "fr-FR";
+      } else if (locale == "ar_SA") {
+        selectedVoiceLanguage = "ar-SA";
+      } else if (locale == "en_US") {
+        // Corrigé de "en-US" à "en_US" pour cohérence
+        selectedVoiceLanguage = "en-US";
+      }
+
+      // Réinitialiser la synthèse vocale avec la nouvelle langue
+      _initializeTts().then((_) {
+        // Si vous voulez donner une confirmation vocale du changement
+        if (_voiceEnabled) {
+          if (locale == "fr_FR") {
+            _speak("Langue changée en français");
+          } else if (locale == "ar_SA") {
+            _speak("تم تغيير اللغة إلى العربية");
+          } else if (locale == "en_US") {
+            _speak("Language changed to English");
+          }
+        }
+      });
     });
-    _languageOverlayEntry?.remove();
-    _languageOverlayEntry = null;
+
+    _removeLanguageOverlay();
   }
 
   @override
@@ -294,11 +319,11 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   }
 
   void _initAIModel() {
-    const apiKey = GEMINI_MODEL_API; //modele le9dim
-    // const apiKey = UPGRADED_GEMINI_MODEL_API;
+    // const apiKey = GEMINI_MODEL_API; //modele le9dim
+    const apiKey = UPGRADED_GEMINI_MODEL_API;
     _model = GenerativeModel(
-      model: 'tunedModels/data-adhd-conversation-hrt0r83znwtv', //modele le9dim
-      // model: 'tunedModels/adhd-chatbot-30-czqhi70ufn0b',
+      // model: 'tunedModels/data-adhd-conversation-hrt0r83znwtv', //modele le9dim
+      model: 'tunedModels/adhd-chatbot-30-czqhi70ufn0b',
       apiKey: apiKey,
       generationConfig: GenerationConfig(
         temperature: 1,
@@ -512,22 +537,6 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       }
     }).catchError((error) {
       print('Error sending prompt to AI model: $error');
-    });
-  }
-
-  // méthode qui gére le changement de langue
-  void _changeLanguage2(String locale) {
-    setState(() {
-      selectedLocale = locale;
-      // Mettre à jour la langue de la synthèse vocale en fonction de la sélection
-      if (locale == "fr_FR") {
-        selectedVoiceLanguage = "fr-FR";
-      } else if (locale == "ar_SA") {
-        selectedVoiceLanguage = "ar-SA";
-      } else if (locale == "en-US") {
-        selectedVoiceLanguage = "en-US";
-      }
-      _initializeTts(); // Réinitialiser la synthèse vocale avec la nouvelle langue
     });
   }
 
