@@ -422,35 +422,35 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       return;
     }
 
-    // Add the user message to the conversation and update the state
+    // Ajouter le message de l'utilisateur à la conversation et mettre à jour l'état
     setState(() {
       messages.insert(0, userMessage);
     });
 
     print("User message added: ${userMessage.text}");
 
-    // Add the new message to Firestore conversation history
+    // Ajouter le nouveau message à l'historique Firestore
     _currentConversation?.chatMessages.add(userMessage.text);
 
-    // **Ensure we only send up to the last 30 messages (or all if fewer exist)**
-    int messageCount = _currentConversation!.chatMessages.length;
-    List<String> lastMessages = _currentConversation!.chatMessages.sublist(
-        messageCount > 30
-            ? messageCount - 30
-            : 0); // Get last 30 or all if fewer
-
-    // Debugging: Print the last 30 messages before sending them to AI
-    print("\n===== LAST ${lastMessages.length} MESSAGES TO AI =====");
-    for (int i = 0; i < lastMessages.length; i++) {
-      print("[${i + 1}] ${lastMessages[i]}");
+    // Construire le contenu à envoyer au modèle d'IA
+    String limitedConversation = "";
+    if (_firstMessageSent) {
+      // Envoyer l'historique pour les messages suivants
+      int messageCount = _currentConversation!.chatMessages.length;
+      List<String> lastMessages = _currentConversation!.chatMessages.sublist(
+          messageCount > 30
+              ? messageCount - 30
+              : 0); // Récupérer les 30 derniers messages
+      limitedConversation = lastMessages.join("\n");
+    } else {
+      // Ignorer l'historique pour le premier message
+      limitedConversation = userMessage.text;
+      _firstMessageSent = true; // Marquer que le premier message a été envoyé
     }
-    print("====================================\n");
 
-    // Create a formatted conversation history for AI
-    String limitedConversation = lastMessages.join("\n");
+    final content = Content.text(limitedConversation);
 
-    final content = Content.text(limitedConversation); // Send limited messages
-
+    // Envoyer le contenu au modèle d'IA
     _chat.sendMessage(content).then((response) {
       final responseText = response.text;
       final aiMessage = ChatMessage(
@@ -466,12 +466,14 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
 
       print("AI Response received: $responseText");
 
+      // Sauvegarder la conversation dans Firestore
       FirestoreService().createConversation(_currentConversation!).then((_) {
         print('Conversation successfully saved');
       }).catchError((error) {
         print('Error saving conversation: $error');
       });
 
+      // Lire la réponse à haute voix si activé
       if (_voiceEnabled && responseText != null && responseText.isNotEmpty) {
         _speak(responseText);
       }
